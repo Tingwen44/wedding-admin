@@ -244,6 +244,7 @@
                             <th>ID</th>
                             <th>嘉宾姓名</th>
                             <th>参与人数</th>
+                            <th>参与亲友姓名</th>
                             <th>婚礼地点</th>
                             <th>住宿日期</th>
                             <th>房间类型</th>
@@ -252,7 +253,7 @@
                         </tr>
                     </thead>
                     <tbody id="responses-table">
-                        <tr><td colspan="8" style="text-align: center; color: #999;">加载中...</td></tr>
+                        <tr><td colspan="9" style="text-align: center; color: #999;">加载中...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -317,6 +318,7 @@
                         <td>${r.id}</td>
                         <td>${r.guest_name}</td>
                         <td>${r.guest_count}</td>
+                        <td>${r.accompanying_guests || '-'}</td>
                         <td>${r.wedding_location}</td>
                         <td>${r.accommodation_dates}</td>
                         <td>${r.room_type || '-'}</td>
@@ -324,7 +326,7 @@
                         <td>${new Date(r.created_at).toLocaleString('zh-CN')}</td>
                     </tr>
                 `).join('');
-                document.getElementById('responses-table').innerHTML = responsesHtml || '<tr><td colspan="8" style="text-align: center; color: #999;">暂无数据</td></tr>';
+                document.getElementById('responses-table').innerHTML = responsesHtml || '<tr><td colspan="9" style="text-align: center; color: #999;">暂无数据</td></tr>';
                 
                 // 更新最后更新时间
                 document.getElementById('last-update-time').textContent = new Date().toLocaleString('zh-CN');
