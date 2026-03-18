@@ -366,8 +366,9 @@
                 
                 // 需要获取所有数据来计算统计（因为我们只显示一页）
                 const allListResponse = await fetch(`${BACKEND_URL}/api/rsvp/list?token=${ADMIN_TOKEN}&page=1&pageSize=10000`);
+                let allListData = null;
                 if (allListResponse.ok) {
-                    const allListData = await allListResponse.json();
+                    allListData = await allListResponse.json();
                     allListData.data.forEach(r => {
                         totalGuests += r.guest_count;
                         if (r.room_type && r.room_type !== '-' && r.room_type !== '不住宿') {
@@ -396,8 +397,7 @@
                 
                 // 更新住宿统计表格（从所有数据中计算）
                 const roomTypeStats = {};
-                if (allListResponse.ok) {
-                    const allListData = await allListResponse.json();
+                if (allListData) {
                     allListData.data.forEach(r => {
                         const roomType = r.room_type || '无';
                         roomTypeStats[roomType] = (roomTypeStats[roomType] || 0) + 1;
