@@ -18,7 +18,7 @@
         }
         
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
             background-color: white;
             border-radius: 8px;
@@ -88,6 +88,56 @@
             padding-bottom: 10px;
         }
         
+        .table-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 5px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .pagination button,
+        .pagination span {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            background-color: white;
+            color: #333;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .pagination button:hover {
+            background-color: #f0f0f0;
+        }
+        
+        .pagination button.active {
+            background-color: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .pagination span {
+            border: none;
+            cursor: default;
+            background-color: transparent;
+        }
+        
         table {
             width: 100%;
             border-collapse: collapse;
@@ -110,6 +160,7 @@
             padding: 12px 15px;
             border-bottom: 1px solid #eee;
             color: #666;
+            word-break: break-word;
         }
         
         table tbody tr:hover {
@@ -168,6 +219,17 @@
         .badge.no {
             background-color: #f8d7da;
             color: #721c24;
+        }
+        
+        .page-info {
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        
+        .table-wrapper {
+            overflow-x: auto;
         }
     </style>
 </head>
@@ -237,25 +299,31 @@
             
             <!-- 所有回复详情表格 -->
             <div class="table-section">
-                <h2>所有回复详情</h2>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>嘉宾姓名</th>
-                            <th>参与人数</th>
-                            <th>参与亲友姓名</th>
-                            <th>婚礼地点</th>
-                            <th>住宿日期</th>
-                            <th>房间类型</th>
-                            <th>After Party</th>
-                            <th>提交时间</th>
-                        </tr>
-                    </thead>
-                    <tbody id="responses-table">
-                        <tr><td colspan="9" style="text-align: center; color: #999;">加载中...</td></tr>
-                    </tbody>
-                </table>
+                <h2>所有回复详情（最近 3 个月）</h2>
+                <div class="table-controls">
+                    <div class="page-info" id="page-info">加载中...</div>
+                </div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>嘉宾姓名</th>
+                                <th>参与人数</th>
+                                <th>参与亲友姓名</th>
+                                <th>婚礼地点</th>
+                                <th>住宿日期</th>
+                                <th>房间类型</th>
+                                <th>After Party</th>
+                                <th>提交时间</th>
+                            </tr>
+                        </thead>
+                        <tbody id="responses-table">
+                            <tr><td colspan="9" style="text-align: center; color: #999;">加载中...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pagination" id="pagination"></div>
             </div>
             
             <div class="last-update">
@@ -268,7 +336,11 @@
         const BACKEND_URL = 'https://wedding-backend-production-6728.up.railway.app';
         const ADMIN_TOKEN = 'Silentmafia001';
         
-        async function loadData() {
+        let currentPage = 1;
+        let totalPages = 1;
+        let pageSize = 10;
+        
+        async function loadData(page = 1) {
             try {
                 document.getElementById('loading').style.display = 'block';
                 document.getElementById('content').style.display = 'none';
@@ -279,31 +351,60 @@
                 if (!statsResponse.ok) throw new Error('获取统计数据失败');
                 const stats = await statsResponse.json();
                 
-                // 获取详细数据
-                const listResponse = await fetch(`${BACKEND_URL}/api/rsvp/list?token=${ADMIN_TOKEN}`);
+                // 获取分页数据
+                const listResponse = await fetch(`${BACKEND_URL}/api/rsvp/list?token=${ADMIN_TOKEN}&page=${page}&pageSize=${pageSize}`);
                 if (!listResponse.ok) throw new Error('获取回复列表失败');
                 const listData = await listResponse.json();
                 
                 // 更新统计卡片
-                document.getElementById('total-responses').textContent = stats.total_responses || 0;
-                document.getElementById('total-guests').textContent = stats.total_guests || 0;
-                document.getElementById('accommodation-count').textContent = stats.accommodation_needed || 0;
-                document.getElementById('after-party-count').textContent = stats.after_party_yes || 0;
+                document.getElementById('total-responses').textContent = listData.total || 0;
+                
+                // 计算总参与人数
+                let totalGuests = 0;
+                let accommodationNeeded = 0;
+                let afterPartyYes = 0;
+                
+                // 需要获取所有数据来计算统计（因为我们只显示一页）
+                const allListResponse = await fetch(`${BACKEND_URL}/api/rsvp/list?token=${ADMIN_TOKEN}&page=1&pageSize=10000`);
+                if (allListResponse.ok) {
+                    const allListData = await allListResponse.json();
+                    allListData.data.forEach(r => {
+                        totalGuests += r.guest_count;
+                        if (r.room_type && r.room_type !== '-' && r.room_type !== '不住宿') {
+                            accommodationNeeded++;
+                        }
+                        if (r.after_party) {
+                            afterPartyYes++;
+                        }
+                    });
+                }
+                
+                document.getElementById('total-guests').textContent = totalGuests || 0;
+                document.getElementById('accommodation-count').textContent = accommodationNeeded || 0;
+                document.getElementById('after-party-count').textContent = afterPartyYes || 0;
                 
                 // 更新地点统计表格
-                const locationStats = stats.by_location || {};
-                const locationHtml = Object.entries(locationStats).map(([location, count]) => `
+                const locationStats = stats.data || [];
+                const locationHtml = locationStats.map(item => `
                     <tr>
-                        <td>${location}</td>
-                        <td>${count.responses || 0}</td>
-                        <td>${count.guests || 0}</td>
+                        <td>${item.wedding_location}</td>
+                        <td>${item.count || 0}</td>
+                        <td>${item.total_guests || 0}</td>
                     </tr>
                 `).join('');
                 document.getElementById('location-stats').innerHTML = locationHtml || '<tr><td colspan="3" style="text-align: center; color: #999;">暂无数据</td></tr>';
                 
-                // 更新住宿统计表格
-                const accommodationStats = stats.by_room_type || {};
-                const accommodationHtml = Object.entries(accommodationStats).map(([type, count]) => `
+                // 更新住宿统计表格（从所有数据中计算）
+                const roomTypeStats = {};
+                if (allListResponse.ok) {
+                    const allListData = await allListResponse.json();
+                    allListData.data.forEach(r => {
+                        const roomType = r.room_type || '无';
+                        roomTypeStats[roomType] = (roomTypeStats[roomType] || 0) + 1;
+                    });
+                }
+                
+                const accommodationHtml = Object.entries(roomTypeStats).map(([type, count]) => `
                     <tr>
                         <td>${type}</td>
                         <td>${count}</td>
@@ -320,13 +421,22 @@
                         <td>${r.guest_count}</td>
                         <td>${r.accompanying_guests || '-'}</td>
                         <td>${r.wedding_location}</td>
-                        <td>${r.accommodation_dates}</td>
+                        <td>${r.accommodation_dates || '-'}</td>
                         <td>${r.room_type || '-'}</td>
                         <td><span class="badge ${r.after_party ? 'yes' : 'no'}">${r.after_party ? '参加' : '不参加'}</span></td>
                         <td>${new Date(r.created_at).toLocaleString('zh-CN')}</td>
                     </tr>
                 `).join('');
                 document.getElementById('responses-table').innerHTML = responsesHtml || '<tr><td colspan="9" style="text-align: center; color: #999;">暂无数据</td></tr>';
+                
+                // 更新分页信息
+                currentPage = listData.currentPage || 1;
+                totalPages = listData.totalPages || 1;
+                const pageInfo = `第 ${currentPage} 页，共 ${totalPages} 页（总共 ${listData.total} 条记录）`;
+                document.getElementById('page-info').textContent = pageInfo;
+                
+                // 生成分页按钮
+                generatePagination();
                 
                 // 更新最后更新时间
                 document.getElementById('last-update-time').textContent = new Date().toLocaleString('zh-CN');
@@ -341,11 +451,76 @@
             }
         }
         
+        function generatePagination() {
+            const paginationDiv = document.getElementById('pagination');
+            paginationDiv.innerHTML = '';
+            
+            // 上一页按钮
+            const prevBtn = document.createElement('button');
+            prevBtn.textContent = '上一页';
+            prevBtn.disabled = currentPage === 1;
+            prevBtn.onclick = () => {
+                if (currentPage > 1) {
+                    loadData(currentPage - 1);
+                }
+            };
+            paginationDiv.appendChild(prevBtn);
+            
+            // 页码按钮
+            const startPage = Math.max(1, currentPage - 2);
+            const endPage = Math.min(totalPages, currentPage + 2);
+            
+            if (startPage > 1) {
+                const firstBtn = document.createElement('button');
+                firstBtn.textContent = '1';
+                firstBtn.onclick = () => loadData(1);
+                paginationDiv.appendChild(firstBtn);
+                
+                if (startPage > 2) {
+                    const dots = document.createElement('span');
+                    dots.textContent = '...';
+                    paginationDiv.appendChild(dots);
+                }
+            }
+            
+            for (let i = startPage; i <= endPage; i++) {
+                const pageBtn = document.createElement('button');
+                pageBtn.textContent = i;
+                pageBtn.className = i === currentPage ? 'active' : '';
+                pageBtn.onclick = () => loadData(i);
+                paginationDiv.appendChild(pageBtn);
+            }
+            
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    const dots = document.createElement('span');
+                    dots.textContent = '...';
+                    paginationDiv.appendChild(dots);
+                }
+                
+                const lastBtn = document.createElement('button');
+                lastBtn.textContent = totalPages;
+                lastBtn.onclick = () => loadData(totalPages);
+                paginationDiv.appendChild(lastBtn);
+            }
+            
+            // 下一页按钮
+            const nextBtn = document.createElement('button');
+            nextBtn.textContent = '下一页';
+            nextBtn.disabled = currentPage === totalPages;
+            nextBtn.onclick = () => {
+                if (currentPage < totalPages) {
+                    loadData(currentPage + 1);
+                }
+            };
+            paginationDiv.appendChild(nextBtn);
+        }
+        
         // 页面加载时自动刷新数据
-        window.addEventListener('load', loadData);
+        window.addEventListener('load', () => loadData(1));
         
         // 每 30 秒自动刷新一次
-        setInterval(loadData, 30000);
+        setInterval(() => loadData(currentPage), 30000);
     </script>
 </body>
 </html>
