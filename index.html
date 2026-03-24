@@ -250,10 +250,7 @@
                     <h3>总回复数</h3>
                     <div class="number" id="total-responses">0</div>
                 </div>
-                <div class="stat-card green">
-                    <h3>总参与人数</h3>
-                    <div class="number" id="total-guests">0</div>
-                </div>
+
                 <div class="stat-card orange">
                     <h3>需要住宿</h3>
                     <div class="number" id="accommodation-count">0</div>
@@ -272,7 +269,6 @@
                         <tr>
                             <th>婚礼地点</th>
                             <th>回复数</th>
-                            <th>参与人数</th>
                         </tr>
                     </thead>
                     <tbody id="location-stats">
@@ -309,7 +305,6 @@
                             <tr>
                                 <th>ID</th>
                                 <th>嘉宾姓名</th>
-                                <th>参与人数</th>
                                 <th>参与亲友姓名</th>
                                 <th>婚礼地点</th>
                                 <th>住宿日期</th>
@@ -319,7 +314,7 @@
                             </tr>
                         </thead>
                         <tbody id="responses-table">
-                            <tr><td colspan="9" style="text-align: center; color: #999;">加载中...</td></tr>
+                            <tr><td colspan="8" style="text-align: center; color: #999;">加载中...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -364,13 +359,11 @@
                 const listData = await listResponse.json();
                 
                 // 计算统计数据
-                let totalGuests = 0;
                 let accommodationNeeded = 0;
                 let afterPartyYes = 0;
                 const roomTypeStats = {};
                 
                 allData.forEach(r => {
-                    totalGuests += r.guest_count;
                     if (r.room_type && r.room_type !== '-' && r.room_type !== '不住宿') {
                         accommodationNeeded++;
                     }
@@ -383,7 +376,6 @@
                 
                 // 更新统计卡片
                 document.getElementById('total-responses').textContent = allListData.total || 0;
-                document.getElementById('total-guests').textContent = totalGuests || 0;
                 document.getElementById('accommodation-count').textContent = accommodationNeeded || 0;
                 document.getElementById('after-party-count').textContent = afterPartyYes || 0;
                 
@@ -393,10 +385,9 @@
                     <tr>
                         <td>${item.wedding_location}</td>
                         <td>${item.count || 0}</td>
-                        <td>${item.total_guests || 0}</td>
                     </tr>
                 `).join('');
-                document.getElementById('location-stats').innerHTML = locationHtml || '<tr><td colspan="3" style="text-align: center; color: #999;">暂无数据</td></tr>';
+                document.getElementById('location-stats').innerHTML = locationHtml || '<tr><td colspan="2" style="text-align: center; color: #999;">暂无数据</td></tr>';
                 
                 // 更新住宿统计表格
                 const accommodationHtml = Object.entries(roomTypeStats).map(([type, count]) => `
@@ -413,7 +404,6 @@
                     <tr>
                         <td>${r.id}</td>
                         <td>${r.guest_name}</td>
-                        <td>${r.guest_count}</td>
                         <td>${r.accompanying_guests || '-'}</td>
                         <td>${r.wedding_location}</td>
                         <td>${r.accommodation_dates || '-'}</td>
@@ -422,7 +412,7 @@
                         <td>${new Date(r.created_at).toLocaleString('zh-CN')}</td>
                     </tr>
                 `).join('');
-                document.getElementById('responses-table').innerHTML = responsesHtml || '<tr><td colspan="9" style="text-align: center; color: #999;">暂无数据</td></tr>';
+                document.getElementById('responses-table').innerHTML = responsesHtml || '<tr><td colspan="8" style="text-align: center; color: #999;">暂无数据</td></tr>';
                 
                 // 更新分页信息
                 currentPage = listData.currentPage || 1;
